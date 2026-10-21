@@ -35,9 +35,6 @@ jobs:
         ruby-version: '3.3'
         bundler-cache: true
 
-    - name: Run specs and lint
-      run: bundle exec rake
-
     - name: Get version from version.rb
       id: get_version
       run: |
@@ -50,7 +47,7 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Create git tag
+    - name: Reject existing release tag
       env:
         VERSION: ${{ steps.get_version.outputs.version }}
       run: |
@@ -59,7 +56,24 @@ jobs:
           echo "::error::Tag $TAG already exists. Aborting release."
           exit 1
         fi
-        git tag "$TAG"
+
+    - name: Prepare changelog and workflow references
+      run: ruby scripts/release_version.rb prepare
+
+    - name: Run specs and lint against prepared release
+      run: bundle exec rake
+
+    - name: Commit release preparation locally
+      env:
+        VERSION: ${{ steps.get_version.outputs.version }}
+      run: |
+        git add -u
+        if ! git diff --cached --quiet; then
+          git commit -m "Prepare release $VERSION"
+        fi
+
+    - name: Create git tag
+      run: git tag "v${{ steps.get_version.outputs.version }}"
 
     - name: Build gem
       run: |
@@ -67,6 +81,20 @@ jobs:
           echo "::error::Gem build failed. Review the gemspec and required package files."
           exit 1
         fi
+
+    - name: Save prepared source for recovery
+      env:
+        VERSION: ${{ steps.get_version.outputs.version }}
+      run: git bundle create release.bundle "v$VERSION"
+
+    - name: Upload release recovery files
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-v${{ steps.get_version.outputs.version }}
+        path: |
+          release.bundle
+          danger-pr-comment-${{ steps.get_version.outputs.version }}.gem
+        if-no-files-found: error
 
     - name: Authenticate to RubyGems with trusted publishing
       uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
@@ -80,8 +108,10 @@ jobs:
           exit 1
         fi
 
-    - name: Push tag
-      run: git push origin "v${{ steps.get_version.outputs.version }}"
+    - name: Push release commit and tag atomically
+      env:
+        VERSION: ${{ steps.get_version.outputs.version }}
+      run: git push --atomic origin HEAD:main "v$VERSION"
 
     - name: Create GitHub Release
       env:
