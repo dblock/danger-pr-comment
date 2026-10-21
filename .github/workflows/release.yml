@@ -35,9 +35,6 @@ jobs:
         ruby-version: '3.3'
         bundler-cache: true
 
-    - name: Run specs and lint
-      run: bundle exec rake
-
     - name: Get version from version.rb
       id: get_version
       run: |
@@ -50,7 +47,7 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Create git tag
+    - name: Reject existing release tag
       env:
         VERSION: ${{ steps.get_version.outputs.version }}
       run: |
@@ -59,7 +56,25 @@ jobs:
           echo "::error::Tag $TAG already exists. Aborting release."
           exit 1
         fi
-        git tag "$TAG"
+
+    - name: Prepare changelog and workflow references
+      run: ruby scripts/release_version.rb prepare
+
+    - name: Run specs and lint against prepared release
+      run: bundle exec rake
+
+    - name: Commit and push release preparation
+      env:
+        VERSION: ${{ steps.get_version.outputs.version }}
+      run: |
+        git add CHANGELOG.md README.md scripts/install-workflows.sh spec/scripts/install_workflows_spec.rb
+        if ! git diff --cached --quiet; then
+          git commit -m "Prepare release $VERSION"
+        fi
+        git push origin HEAD:main
+
+    - name: Create git tag
+      run: git tag "v${{ steps.get_version.outputs.version }}"
 
     - name: Build gem
       run: |
