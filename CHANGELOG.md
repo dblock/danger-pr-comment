@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-21
+
 ### Added
 
 - [#2](https://github.com/numbata/danger-pr-comment/pull/2): Add automated releases using RubyGems Trusted Publishing, with release validation, GitHub release creation, and next development version preparation - [@dblock](https://github.com/dblock).

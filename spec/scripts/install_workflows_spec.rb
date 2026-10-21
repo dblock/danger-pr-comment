@@ -66,7 +66,7 @@ RSpec.describe 'Workflow installation script', type: :integration do
 
     it 'uses the reusable workflow' do
       content = File.read(danger_yml_path)
-      expect(content).to include('uses: numbata/danger-pr-comment/.github/workflows/danger-run.yml@v0.1.0')
+      expect(content).to include('uses: numbata/danger-pr-comment/.github/workflows/danger-run.yml@v0.1.1')
     end
 
     it 'inherits secrets' do
@@ -94,7 +94,7 @@ RSpec.describe 'Workflow installation script', type: :integration do
 
     it 'uses the reusable workflow' do
       content = File.read(danger_comment_yml_path)
-      expect(content).to include('uses: numbata/danger-pr-comment/.github/workflows/danger-comment.yml@v0.1.0')
+      expect(content).to include('uses: numbata/danger-pr-comment/.github/workflows/danger-comment.yml@v0.1.1')
     end
 
     it 'inherits secrets' do
