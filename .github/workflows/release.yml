@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Verify release commit is current
+      run: |
+        git fetch origin main
+        if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+          echo "::error::main has advanced since this run was dispatched. Start a new release run."
+          exit 1
+        fi
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.3'
+        bundler-cache: true
+
+    - name: Run specs and lint
+      run: bundle exec rake
+
+    - name: Get version from version.rb
+      id: get_version
+      run: |
+        VERSION=$(ruby scripts/release_version.rb read)
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "Releasing version: $VERSION"
+
+    - name: Configure git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Create git tag
+      env:
+        VERSION: ${{ steps.get_version.outputs.version }}
+      run: |
+        TAG="v$VERSION"
+        if git show-ref --verify --quiet "refs/tags/$TAG"; then
+          echo "::error::Tag $TAG already exists. Aborting release."
+          exit 1
+        fi
+        git tag "$TAG"
+
+    - name: Build gem
+      run: |
+        if ! gem build danger-pr-comment.gemspec; then
+          echo "::error::Gem build failed. Review the gemspec and required package files."
+          exit 1
+        fi
+
+    - name: Authenticate to RubyGems with trusted publishing
+      uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+
+    - name: Push gem to RubyGems
+      env:
+        VERSION: ${{ steps.get_version.outputs.version }}
+      run: |
+        if ! gem push "danger-pr-comment-$VERSION.gem"; then
+          echo "::error::RubyGems upload failed. Check whether the version was published before retrying; no tag or GitHub release has been pushed."
+          exit 1
+        fi
+
+    - name: Push tag
+      run: git push origin "v${{ steps.get_version.outputs.version }}"
+
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "v${{ steps.get_version.outputs.version }}" \
+          --verify-tag \
+          --title "v${{ steps.get_version.outputs.version }}" \
+          --generate-notes \
+          danger-pr-comment-${{ steps.get_version.outputs.version }}.gem
+
+    - name: Increment patch version
+      id: next_version
+      run: |
+        NEXT_VERSION=$(ruby scripts/release_version.rb bump)
+        echo "next_version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+        echo "Next development version: $NEXT_VERSION"
+
+    - name: Update version to next development version
+      run: |
+        git add lib/danger-pr-comment/version.rb
+        git commit -m "Bump version to ${{ steps.next_version.outputs.next_version }}"
+        git push origin main

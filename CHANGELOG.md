@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [#2](https://github.com/numbata/danger-pr-comment/pull/2): Add automated releases using RubyGems Trusted Publishing, with release validation, GitHub release creation, and next development version preparation - [@dblock](https://github.com/dblock).
 - [#6](https://github.com/numbata/danger-pr-comment/pull/6): Setup danger workflows as an example - [@numbata](https://github.com/numbata).
 - [#1](https://github.com/numbata/danger-pr-comment/pull/1): Add comprehensive test suite with RSpec, Rubocop, and CI - [@dblock](https://github.com/dblock).
 * [#4](https://github.com/numbata/danger-pr-comment/pull/4): Improve install script documentation - [@dblock](https://github.com/dblock).
@@ -27,4 +28,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reusable GitHub Actions workflow `danger-run.yml` for running Danger
 - Reusable GitHub Actions workflow `danger-comment.yml` for posting PR comments
 - Installation script `scripts/install-workflows.sh`
-
